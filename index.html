@@ -1,108 +1,247 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Virtuelle 3D Wohnungswelt</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>3D Immobilien Simulator</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #111;
+        body, html { margin: 0; padding: 0; overflow: hidden; width: 100vw; height: 100vh; font-family: 'Segoe UI', sans-serif; background-color: #080810; touch-action: none; }
+        
+        #blocker { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background: radial-gradient(circle, #1a1a2e 0%, #05050f 100%); 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            z-index: 9999; color: #fff; text-align: center; 
         }
-        canvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
+        #instructions { 
+            padding: 40px; border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(15, 15, 25, 0.9); border-radius: 20px; 
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8); max-width: 500px; backdrop-filter: blur(10px);
         }
-        /* Elegantes Gaming-UI */
-        #ui-container {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(15, 15, 25, 0.85);
-            color: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid #334466;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
-            pointer-events: none;
-            z-index: 10;
-            max-width: 320px;
+        #instructions h2 { color: #ffffff; margin-top: 0; font-size: 26px; letter-spacing: 1px; }
+        #instructions p { color: #a0a5b5; line-height: 1.6; font-size: 14px; margin-bottom: 25px; }
+        
+        .selection-group { display: flex; gap: 30px; justify-content: center; }
+        .btn-ui { 
+            position: relative; z-index: 10001; 
+            padding: 16px 45px; border: 2px solid rgba(255,255,255,0.15); border-radius: 14px; 
+            background: #1f1f35; color: white; font-size: 20px; font-weight: bold; 
+            cursor: pointer; transition: all 0.25s ease; letter-spacing: 1px;
         }
-        #room-title {
-            font-size: 20px;
-            font-weight: bold;
-            color: #00ddff;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .btn-ui:hover { border-color: #00ddff; transform: scale(1.05); box-shadow: 0 0 25px rgba(0, 221, 255, 0.4); background: #252545; }
+
+        /* Mobile Steuerungselemente */
+        #mobile-controls {
+            display: none; position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            z-index: 4000; flex-direction: column; align-items: center; gap: 5px;
         }
-        #instructions {
-            color: #ccc;
-            font-size: 13px;
-            line-height: 1.5;
+        .ctrl-row { display: flex; gap: 15px; justify-content: center; }
+        .btn-ctrl {
+            width: 65px; height: 65px; border-radius: 50%; background: rgba(31, 31, 53, 0.8);
+            border: 2px solid rgba(0, 221, 255, 0.5); color: white; font-size: 28px; font-weight: bold;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); user-select: none; touch-action: none;
         }
-        /* Fadenkreuz in der Mitte für echtes First-Person-Gefühl */
-        #crosshair {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 10px;
-            height: 10px;
-            transform: translate(-50%, -50%);
-            border: 2px solid rgba(250, 250, 250, 0.5);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 5;
-        }
+        .btn-ctrl:active { background: rgba(0, 221, 255, 0.6); transform: scale(0.95); }
+
+        /* 2D-Bild-Overlay */
+        #photo-overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(4, 4, 8, 0.97); z-index: 5000; justify-content: center; align-items: center; flex-direction: column; }
+        #room-photo { max-width: 85vw; max-height: 72vh; border-radius: 14px; box-shadow: 0 30px 70px rgba(0,0,0,0.9); border: 1px solid rgba(255,255,255,0.1); object-fit: contain; background: #111; }
+        #room-tag { color: #ffffff; font-size: 28px; font-weight: bold; margin-bottom: 15px; letter-spacing: 2px; text-transform: uppercase; text-shadow: 0 0 10px rgba(0,221,255,0.5); }
+        #exit-btn { margin-top: 25px; padding: 14px 45px; font-size: 16px; font-weight: bold; color: white; background: #ff3b30; border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 5px 15px rgba(255, 59, 48, 0.3); transition: transform 0.2s; }
+        #exit-btn:hover { transform: scale(1.03); background: #ff453a; }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
 </head>
 <body>
 
-    <div id="crosshair"></div>
-
-    <div id="ui-container">
-        <div id="room-title">Lade Wohnung...</div>
+    <div id="blocker">
         <div id="instructions">
-            <strong>Steuerung:</strong><br>
-            • Maus gedrückt halten & bewegen zum Umsehen<br>
-            • Klicke direkt auf eine 3D-Zimmertür, um den Raum zu betreten.
+            <h2>VIRTUELLE ARCHITEKTUR-TOUR</h2>
+            
+            <div id="step-device">
+                <p>Wähle dein aktuelles Gerät, um die Steuerung optimal anzupassen.</p>
+                <div class="selection-group">
+                    <button class="btn-ui" onclick="selectDevice('pc')">🖥️ PC</button>
+                    <button class="btn-ui" onclick="selectDevice('mobile')">📱 SMARTPHONE</button>
+                </div>
+            </div>
+
+            <div id="step-avatar" style="display: none;">
+                <p>Wähle deinen Charakter, um die Wohnung zu betreten.</p>
+                <div class="selection-group">
+                    <button class="btn-ui" onclick="chooseAvatar('frau')">FRAU</button>
+                    <button class="btn-ui" onclick="chooseAvatar('mann')">MANN</button>
+                </div>
+            </div>
+            
         </div>
     </div>
 
+    <div id="mobile-controls">
+        <div class="btn-ctrl" id="btn-up">↑</div>
+        <div class="ctrl-row">
+            <div class="btn-ctrl" id="btn-left">←</div>
+            <div class="btn-ctrl" id="btn-down">↓</div>
+            <div class="btn-ctrl" id="btn-right">→</div>
+        </div>
+    </div>
+
+    <div id="photo-overlay">
+        <div id="room-tag">RAUM</div>
+        <img id="room-photo" src="" alt="Raumansicht" />
+        <button id="exit-btn" onclick="leaveRoom()">ZURUECK IN DEN FLUR</button>
+    </div>
+
     <script>
-        let scene, camera, renderer, environmentSphere;
-        let textureLoader;
-        let isUserInteracting = false;
-        let lon = 0, lat = 0;
-        let onPointerDownMouseX = 0, onPointerDownMouseY = 0;
-        let onPointerDownLon = 0, onPointerDownLat = 0;
-        let phi = 0, theta = 0;
+        let scene, camera, renderer, playerMesh;
+        let moveUp = false, moveDown = false, moveLeft = false, moveRight = false;
+        let audioCtx = null, stepInterval, loopInterval, musicNodes = [];
+        let insideRoom = null, gameStarted = false, canMove = true, moveTimeout = null;
+        let lastPlayerPos = new THREE.Vector3();
+        let isMobileMode = false;
 
-        let raycaster = new THREE.Raycaster();
-        let mouse = new THREE.Vector2();
-        
-        let doors = [];
+        const rooms = [
+            { name: "BADEZIMMER", img: "bad.jpg", xMin: -50, xMax: -38, zMin: -65, zMax: -15 },
+            { name: "ZIMMER 1", img: "zimmer1.jpg", xMin: -50, xMax: -38, zMin: 35, zMax: 85 },
+            { name: "ZIMMER 2", img: "zimmer2.jpg", xMin: 38, xMax: 50, zMin: -65, zMax: -15 },
+            { name: "ZIMMER 3", img: "zimmer3.jpg", xMin: 38, xMax: 50, zMin: 35, zMax: 85 },
+            { name: "BALKON", img: "balkon.jpg", xMin: -30, xMax: 30, zMin: -150, zMax: -125 }
+        ];
 
-        // Die Struktur der Wohnung
-        const apartment = {
-            flur: {
-                name: "Zentraler Flur",
-                image: "flur.jpg",
-                // Wir platzieren echte 3D-Türen (Breite, Höhe, Tiefe, X, Y, Z, Rotation-Y, Zielraum, Tür-Farbe)
-                doors: [
-                    { w: 40, h: 90, d: 5, x: -250, y: -40, z: -150, rotY: Math.PI/4,  target: "zimmer1", color: 0x8b5a2b },
-                    { w: 40, h: 90, d: 5, x: -250, y: -40, z: 150,  rotY: -Math.PI/4, target: "zimmer2", color: 0x8b5a2b },
-                    { w: 40, h: 90, d: 5, x: 250,  y: -40, z: -150, rotY: -Math.PI/4, target: "zimmer3", color: 0x8b5a2b },
-                    { w: 40, h: 90, d: 5, x: 250,  y: -40, z: 150,  rotY: Math.PI/4,  target: "bad",    color: 0x226688 },
-                    { w: 60, h: 95, d: 5, x: 0,    y: -40, z: -300, rotY: 0,          target: "balkon", color: 0xdddddd }
-                ]
-            },
-            // Die Zimmer selbst haben nur eine Rückgangs-Tür (wird automatisch hinter dem Spieler platziert)
-            zimmer1: { name: "Zimmer 1", image: "zimmer1.jpg", doors: [{ w: 40, h: 90, d: 5, x: 0, y: -40, z: 250, rotY: 0, target: "flur", color: 0x8b5a2b }] },
-            zimmer2: { name: "Zimmer 2", image: "zimmer2.jpg", doors: [{ w: 40, h: 90, d: 5, x: 0, y: -40, z: 250, rotY: 0, target: "flur", color: 0x8b5a2b }] },
-            zimmer3: { name: "Zimmer 3", image: "zimmer3.jpg", doors: [{ w: 40, h: 90, d: 5, x: 0, y: -40, z: 250, rotY: 0, target: "flur", color: 0x8b5a2b }] },
-            bad:     { name: "Badezimmer", image: "bad.jpg",     doors:
+        // Schritt 1: Gerät wählen
+        function selectDevice(type) {
+            isMobileMode = (type === 'mobile');
+            document.getElementById('step-device').style.display = 'none';
+            document.getElementById('step-avatar').style.display = 'block';
+        }
+
+        // Schritt 2: Avatar wählen & Engine starten
+        function chooseAvatar(gender) {
+            document.getElementById('blocker').style.display = 'none';
+
+            // Mobile Controls einblenden, falls Smartphone gewählt wurde
+            if (isMobileMode) {
+                document.getElementById('mobile-controls').style.display = 'flex';
+                setupMobileControls();
+            }
+
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) { audioCtx = new AudioContext(); }
+            } catch (err) {
+                console.warn("Audio blockiert.");
+            }
+
+            setTimeout(() => {
+                let canvas = document.createElement('canvas');
+                canvas.id = 'game-canvas';
+                canvas.style.width = '100vw'; canvas.style.height = '100vh';
+                canvas.style.position = 'absolute';
+                canvas.style.top = '0'; canvas.style.left = '0'; canvas.style.zIndex = '1';
+                document.body.appendChild(canvas);
+
+                gameStarted = true;
+                initEngine(gender, canvas);
+                if (audioCtx) initAudioSystem();
+                animate();
+            }, 50);
+        }
+
+        function initEngine(gender, canvasElement) {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a12);
+
+            camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 1000);
+            camera.position.set(0, 250, 140);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const light = new THREE.DirectionalLight(0xfff5ea, 0.6); 
+            light.position.set(30, 200, 60); scene.add(light);
+
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x36251c, roughness: 0.35, metalness: 0.1 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 300), floorMat);
+            floor.rotation.x = -Math.PI / 2; floor.position.set(0, -40, 0); scene.add(floor);
+
+            buildApartmentStructures();
+
+            playerMesh = new THREE.Group();
+            playerMesh.position.set(0, -40, 110); 
+            buildHumanAvatar(gender);
+            scene.add(playerMesh);
+
+            renderer = new THREE.WebGLRenderer({ canvas: canvasElement, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            // PC Tastatursteuerung
+            window.addEventListener('keydown', e => { 
+                if (!canMove && gameStarted) return;
+                if (e.key === 'ArrowUp') { moveUp = true; if(insideRoom) leaveRoom(); }
+                if (e.key === 'ArrowDown') { moveDown = true; if(insideRoom) leaveRoom(); }
+                if (e.key === 'ArrowLeft') { moveLeft = true; if(insideRoom) leaveRoom(); }
+                if (e.key === 'ArrowRight') { moveRight = true; if(insideRoom) leaveRoom(); }
+            });
+            window.addEventListener('keyup', e => { 
+                if (e.key === 'ArrowUp') moveUp = false;
+                if (e.key === 'ArrowDown') moveDown = false;
+                if (e.key === 'ArrowLeft') moveLeft = false;
+                if (e.key === 'ArrowRight') moveRight = false;
+            });
+            window.addEventListener('resize', () => { 
+                camera.aspect = window.innerWidth / window.innerHeight; 
+                camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); 
+            });
+        }
+
+        // Steuerung für Touch-Screens verknüpfen
+        function setupMobileControls() {
+            const bindBtn = (id, setTrue, setFalse) => {
+                const btn = document.getElementById(id);
+                const startAction = (e) => { 
+                    e.preventDefault(); 
+                    if (!canMove && gameStarted) return; 
+                    setTrue(); 
+                    if(insideRoom) leaveRoom(); 
+                };
+                const endAction = (e) => { e.preventDefault(); setFalse(); };
+                
+                // Touch Events für Smartphones
+                btn.addEventListener('touchstart', startAction, {passive: false});
+                btn.addEventListener('touchend', endAction, {passive: false});
+                btn.addEventListener('touchcancel', endAction, {passive: false});
+                
+                // Fallback für Mausklicks auf die Buttons am PC (zum Testen)
+                btn.addEventListener('mousedown', startAction);
+                btn.addEventListener('mouseup', endAction);
+                btn.addEventListener('mouseleave', endAction);
+            };
+
+            bindBtn('btn-up', () => moveUp = true, () => moveUp = false);
+            bindBtn('btn-down', () => moveDown = true, () => moveDown = false);
+            bindBtn('btn-left', () => moveLeft = true, () => moveLeft = false);
+            bindBtn('btn-right', () => moveRight = true, () => moveRight = false);
+        }
+
+        function buildApartmentStructures() {
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xdedcd8, roughness: 0.8 }); 
+
+            createWall(6, 60, 60, -40, -10, -120, wallMat); 
+            createWall(6, 60, 40, -40, -10, 0, wallMat);   
+            createWall(6, 60, 70, -40, -10, 115, wallMat); 
+
+            createWall(6, 60, 60, 40, -10, -120, wallMat);  
+            createWall(6, 60, 40, 40, -10, 0, wallMat);    
+            createWall(6, 60, 70, 40, -10, 115, wallMat);  
+
+            createWall(32, 60, 6, -24, -10, -150, wallMat);
+            createWall(32, 60, 6, 24, -10, -150, wallMat);
+
+            createPlant(-34, -142); createPlant(34, -142); createPlant(-34, 25); createPlant(34, 25);
+            createWallPicture(-39.5, 12, -80, 0x4a5b6c); createWallPicture(39.5, 12, -80, 0x6c5a4a);
+
+            createFloorSign(-24, -40, "BADEZIMMER"); createFloorSign(-24, 60, "ZIMMER 1");
+            createFloorSign(24, -40, "ZIMMER 2"); createFloorSign(24, 60, "ZIMMER 3");
+            createFloorSign(0, -130, "BALKON");
+        }
+
+        function createWall(w, h, d, x, y
